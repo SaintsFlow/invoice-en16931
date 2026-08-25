@@ -4,7 +4,7 @@
 COMPOSE := docker compose
 RUN := $(COMPOSE) run --rm --no-deps api
 
-.PHONY: check format lint types test run build shell clean
+.PHONY: check format fmt lint types test run build shell clean
 
 ## check: the gate, must pass before every PR
 check: format lint types test
@@ -12,6 +12,11 @@ check: format lint types test
 ## format: is the formatting as ruff wants it
 format:
 	$(RUN) uv run ruff format --check .
+
+## fmt: reformat the code in place
+fmt:
+	$(RUN) uv run ruff format .
+	$(RUN) uv run ruff check --fix .
 
 ## lint: lint rules from pyproject
 lint:

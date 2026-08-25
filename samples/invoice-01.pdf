@@ -1,0 +1,81 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+6 0 obj
+<< /Length 2102 >>
+stream
+BT /F2 14 Tf 50 800 Td (Muster Handels GmbH) Tj ET
+BT /F1 11.0 Tf 50 782 Td (Beispielstrasse 12, 1010 Wien) Tj ET
+BT /F1 11.0 Tf 50 766 Td (UID: ATU12345678) Tj ET
+BT /F2 18 Tf 400 800 Td (RECHNUNG) Tj ET
+BT /F2 11.0 Tf 50 720 Td (Rechnungsempfaenger:) Tj ET
+BT /F1 11.0 Tf 50 704 Td (Testkunde AG) Tj ET
+BT /F1 11.0 Tf 50 688 Td (Musterweg 3, 5020 Salzburg) Tj ET
+BT /F1 11.0 Tf 50 672 Td (UID: ATU87654321) Tj ET
+BT /F1 11.0 Tf 50 630 Td (Rechnungsnummer: 2026-0042) Tj ET
+BT /F1 11.0 Tf 50 612 Td (Rechnungsdatum: 14.03.2026) Tj ET
+BT /F1 11.0 Tf 50 594 Td (Faelligkeitsdatum: 13.04.2026) Tj ET
+BT /F1 11.0 Tf 50 576 Td (Waehrung: EUR) Tj ET
+BT /F2 11.0 Tf 50 520 Td (Pos) Tj ET
+BT /F2 11.0 Tf 90 520 Td (Bezeichnung) Tj ET
+BT /F2 11.0 Tf 300 520 Td (Menge) Tj ET
+BT /F2 11.0 Tf 360 520 Td (Einzelpreis) Tj ET
+BT /F2 11.0 Tf 445 520 Td (USt %) Tj ET
+BT /F2 11.0 Tf 500 520 Td (Betrag) Tj ET
+BT /F1 11.0 Tf 50 494 Td (1) Tj ET
+BT /F1 11.0 Tf 90 494 Td (Beratung pro Stunde) Tj ET
+BT /F1 11.0 Tf 300 494 Td (10) Tj ET
+BT /F1 11.0 Tf 360 494 Td (120,00) Tj ET
+BT /F1 11.0 Tf 445 494 Td (20) Tj ET
+BT /F1 11.0 Tf 500 494 Td (1200,00) Tj ET
+BT /F1 11.0 Tf 50 472 Td (2) Tj ET
+BT /F1 11.0 Tf 90 472 Td (Lizenz Basis Jahr) Tj ET
+BT /F1 11.0 Tf 300 472 Td (2) Tj ET
+BT /F1 11.0 Tf 360 472 Td (250,00) Tj ET
+BT /F1 11.0 Tf 445 472 Td (20) Tj ET
+BT /F1 11.0 Tf 500 472 Td (500,00) Tj ET
+BT /F1 11.0 Tf 50 450 Td (3) Tj ET
+BT /F1 11.0 Tf 90 450 Td (Versand pauschal) Tj ET
+BT /F1 11.0 Tf 300 450 Td (1) Tj ET
+BT /F1 11.0 Tf 360 450 Td (35,00) Tj ET
+BT /F1 11.0 Tf 445 450 Td (10) Tj ET
+BT /F1 11.0 Tf 500 450 Td (35,00) Tj ET
+BT /F1 11.0 Tf 360 380 Td (Nettobetrag:) Tj ET
+BT /F1 11.0 Tf 500 380 Td (1735,00) Tj ET
+BT /F1 11.0 Tf 360 358 Td (USt 20%:) Tj ET
+BT /F1 11.0 Tf 500 358 Td (340,00) Tj ET
+BT /F1 11.0 Tf 360 336 Td (USt 10%:) Tj ET
+BT /F1 11.0 Tf 500 336 Td (3,50) Tj ET
+BT /F2 11.0 Tf 360 310 Td (Gesamtbetrag:) Tj ET
+BT /F2 11.0 Tf 500 310 Td (2078,50) Tj ET
+BT /F1 11.0 Tf 50 250 Td (Zahlbar innerhalb von 30 Tagen ohne Abzug.) Tj ET
+BT /F1 11.0 Tf 50 232 Td (IBAN: AT00 1111 2222 3333 4444) Tj ET
+endstream
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000251 00000 n 
+0000000321 00000 n 
+0000000396 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R >>
+startxref
+2550
+%%EOF

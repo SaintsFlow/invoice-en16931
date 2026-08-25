@@ -9,12 +9,9 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./samples:/app/samples:ro
-      - ./out:/app/out
-      # Code is mounted so an edit shows up without rebuilding the image.
-      - ./src:/app/src:ro
-      - ./tests:/app/tests:ro
-      - ./pyproject.toml:/app/pyproject.toml:ro
+      # The whole project is mounted, so an edit shows up without a rebuild and
+      # tools like the formatter can write back to your files.
+      - .:/app
     healthcheck:
       test:
         - CMD

@@ -1,7 +1,9 @@
-"""FastAPI app. Wave 0 accepts an upload and checks it, nothing is extracted yet."""
+"""FastAPI app. The upload is checked and read; the fields come in wave 3."""
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Annotated, Final, Literal
 
 from fastapi import FastAPI, File, Request, UploadFile
@@ -9,8 +11,11 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from src.errors import FileTooLargeError, InvoiceError, NotAPdfError
+from src.errors import FileTooLargeError, InvoiceError, NotAPdfError, OcrFailedError
 from src.logs import configure_logging, get_logger
+from src.ocr.base import OcrEngine
+from src.ocr.cache import CachingOcrEngine
+from src.ocr.factory import create_engine
 
 # 10 MB. Anything bigger is a mistake or an attack, not an invoice.
 MAX_UPLOAD_BYTES: Final = 10 * 1024 * 1024
@@ -25,10 +30,25 @@ READ_CHUNK_BYTES: Final = 64 * 1024
 configure_logging()
 log = get_logger()
 
+
+@asynccontextmanager
+async def lifespan(service: FastAPI) -> AsyncIterator[None]:
+    """Build the OCR engine while starting up.
+
+    A wrong OCR_ENGINE stops the service here, with a readable message, instead
+    of failing on the first upload of the day.
+    """
+    engine = CachingOcrEngine(create_engine())
+    service.state.ocr = engine
+    log.info("service_started", ocr_engine=engine.name)
+    yield
+
+
 app = FastAPI(
     title="invoice-en16931",
     version="0.1.0",
     summary="PDF invoice in, EN 16931 data out",
+    lifespan=lifespan,
 )
 
 
@@ -39,11 +59,18 @@ class Health(BaseModel):
 
 
 class ExtractAccepted(BaseModel):
-    """Answer of POST /extract in wave 0. Invoice fields arrive in wave 3."""
+    """Answer of POST /extract. The invoice fields themselves arrive in wave 3.
+
+    For now the caller gets back what the OCR step saw: how many pages the file
+    has and how many lines of text were read off them.
+    """
 
     status: Literal["accepted"]
     filename: str
     size_bytes: int
+    engine: str
+    pages: int
+    text_lines: int
 
 
 class ErrorBody(BaseModel):
@@ -112,12 +139,30 @@ async def _read_within_limit(upload: UploadFile) -> bytes:
         422: {"model": ErrorResponse},
     },
 )
-async def extract(file: Annotated[UploadFile, File()]) -> ExtractAccepted:
-    """Take a PDF invoice. Wave 0 checks the upload and stops there."""
+async def extract(request: Request, file: Annotated[UploadFile, File()]) -> ExtractAccepted:
+    """Take a PDF invoice, check it and read it with OCR."""
     data = await _read_within_limit(file)
     if not data.startswith(PDF_SIGNATURE):
         raise NotAPdfError("file is not a PDF, the PDF signature is missing")
 
     name = file.filename or "upload.pdf"
     log.info("upload_accepted", filename=name, size_bytes=len(data))
-    return ExtractAccepted(status="accepted", filename=name, size_bytes=len(data))
+
+    engine = _engine_of(request.app)
+    result = await engine.read(data)
+    return ExtractAccepted(
+        status="accepted",
+        filename=name,
+        size_bytes=len(data),
+        engine=result.engine,
+        pages=len(result.pages),
+        text_lines=result.line_count,
+    )
+
+
+def _engine_of(service: FastAPI) -> OcrEngine:
+    """Take the engine the startup put aside."""
+    engine = getattr(service.state, "ocr", None)
+    if not isinstance(engine, OcrEngine):
+        raise OcrFailedError("the OCR engine is not ready")
+    return engine
