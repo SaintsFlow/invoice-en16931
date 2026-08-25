@@ -1,0 +1,19 @@
+name: check
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The same image the gate uses locally, so a green CI means a green machine.
+      - name: Build the image
+        run: docker compose build
+
+      - name: Run the gate
+        run: make check

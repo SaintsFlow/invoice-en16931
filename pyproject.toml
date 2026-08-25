@@ -1,0 +1,62 @@
+[project]
+name = "invoice-en16931"
+version = "0.1.0"
+description = "Turn a PDF invoice into EN 16931 structured data: UBL 2.1 XML and JSON"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "pydantic>=2.9",
+    "structlog>=24.4",
+    "python-multipart>=0.0.12",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "httpx>=0.27",
+    "ruff>=0.7",
+    "mypy>=1.13",
+]
+
+# The code lives in src/ and is imported as src.*, so there is nothing to build
+# or install. uv only manages the environment.
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle
+    "F",   # pyflakes
+    "I",   # import order
+    "N",   # naming
+    "UP",  # outdated syntax
+    "B",   # common bugs
+    "S",   # security
+    "C4",  # comprehensions
+    "SIM", # needless complexity
+    "RUF",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests are built on assert, and test data is not a security concern.
+"tests/*" = ["S101", "S105", "S106"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+files = ["src", "tests"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"

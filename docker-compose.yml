@@ -1,9 +1,27 @@
 services:
   api:
     build: .
-    env_file: .env
+    # Without .env the service still starts on defaults, so the gate runs on a
+    # fresh clone and in CI.
+    env_file:
+      - path: .env
+        required: false
     ports:
       - "8080:8080"
     volumes:
       - ./samples:/app/samples:ro
       - ./out:/app/out
+      # Code is mounted so an edit shows up without rebuilding the image.
+      - ./src:/app/src:ro
+      - ./tests:/app/tests:ro
+      - ./pyproject.toml:/app/pyproject.toml:ro
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen("http://localhost:8080/health")
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s

@@ -1,19 +1,18 @@
+.git
+.github
+.venv
+venv
 __pycache__/
 *.py[cod]
-.venv/
-venv/
-.env
-.env.local
-*.log
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+.env
+.env.local
+out/
 dist/
 build/
 *.egg-info/
-
-# what the file adapter writes, OUTPUT_DIR by default
-out/
 .DS_Store
 .idea/
 .vscode/
