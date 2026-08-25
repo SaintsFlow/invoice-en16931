@@ -21,6 +21,9 @@ dev = [
     "pytest-asyncio>=0.24",
     "ruff>=0.7",
     "mypy>=1.13",
+    # Checking the generated XML against the UBL schemas. The standard library
+    # cannot do XSD at all, and pure Python keeps the image free of system libs.
+    "xmlschema>=3.4",
 ]
 
 # The code lives in src/ and is imported as src.*, so there is nothing to build
@@ -47,8 +50,10 @@ select = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-# Tests are built on assert, and test data is not a security concern.
-"tests/*" = ["S101", "S105", "S106"]
+# Tests are built on assert, and test data is not a security concern. S314 warns
+# about parsing untrusted XML: the XML these tests parse is the XML our own renderer
+# produced two lines earlier, so there is nothing untrusted about it.
+"tests/*" = ["S101", "S105", "S106", "S314"]
 
 [tool.mypy]
 python_version = "3.12"
