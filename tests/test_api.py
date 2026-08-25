@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import AsyncIterator
 
 import pytest
@@ -9,19 +10,27 @@ from httpx import ASGITransport, AsyncClient
 
 from src.api import MAX_UPLOAD_BYTES, app, lifespan
 from src.errors import UnknownOcrEngineError
+from src.extract.extractor import InvoiceExtractor
 from src.ocr.cache import CachingOcrEngine
-from tests.conftest import MINIMAL_PDF, CountingEngine
+from tests.conftest import MINIMAL_PDF, CountingEngine, ScriptedProvider, sample_invoice
 
 # PNG header plus filler, used as the "this is not an invoice" upload.
 PNG_BYTES = b"\x89PNG\r\n\x1a\n" + b"0" * 64
+
+
+def extractor_answering(invoice_json: str) -> InvoiceExtractor:
+    """An extractor whose model always answers with the given invoice."""
+    return InvoiceExtractor(ScriptedProvider(invoice_json, invoice_json))
 
 
 @pytest.fixture
 async def client() -> AsyncIterator[AsyncClient]:
     # The counting engine stands in for tesseract here, wrapped the same way
     # startup wraps the real one. Reading a real PDF is what
-    # tests/test_tesseract.py is for.
+    # tests/test_tesseract.py is for. The extractor is scripted for the same
+    # reason: these tests are about the endpoint, not about a model.
     app.state.ocr = CachingOcrEngine(CountingEngine())
+    app.state.extractor = extractor_answering(sample_invoice().model_dump_json())
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ready_client:
         yield ready_client
@@ -34,19 +43,56 @@ async def test_health_answers_ok(client: AsyncClient) -> None:
     assert response.json() == {"status": "ok"}
 
 
-async def test_pdf_is_accepted_and_read(client: AsyncClient) -> None:
+async def test_pdf_is_accepted_read_and_checked(client: AsyncClient) -> None:
     files = {"file": ("invoice.pdf", MINIMAL_PDF, "application/pdf")}
 
     response = await client.post("/extract", files=files)
 
     assert response.status_code == 200
     body = response.json()
-    assert body["status"] == "accepted"
     assert body["filename"] == "invoice.pdf"
     assert body["size_bytes"] == len(MINIMAL_PDF)
-    assert body["engine"] == "counting"
-    assert body["pages"] == 1
-    assert body["text_lines"] == 1
+    assert body["reading"] == {"engine": "counting", "pages": 1, "text_lines": 1}
+    assert body["valid"] is True
+    assert body["violations"] == []
+    assert body["invoice"]["number"]["value"] == "R-2026-0042"
+    # Money leaves as a string, all the way out through the API.
+    assert body["invoice"]["totals"]["gross_total"]["value"] == "240.00"
+
+
+async def test_an_invoice_that_does_not_add_up_comes_back_whole(client: AsyncClient) -> None:
+    """The broken one is the one somebody has to look at, so it is not thrown away."""
+    payload = sample_invoice().model_dump(mode="json")
+    payload["totals"]["gross_total"]["value"] = "999.00"
+    app.state.extractor = extractor_answering(json.dumps(payload))
+    files = {"file": ("wrong.pdf", MINIMAL_PDF, "application/pdf")}
+
+    response = await client.post("/extract", files=files)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["valid"] is False
+    assert [v["rule"] for v in body["violations"]] == ["BR-CO-15", "BR-CO-16"]
+    assert body["invoice"]["totals"]["gross_total"]["value"] == "999.00"
+
+    first = body["violations"][0]
+    assert first["bt"] == "BT-112"
+    assert first["field"] == "totals.gross_total"
+    assert first["expected"] == "240.00"
+    assert first["actual"] == "999.00"
+
+
+async def test_without_a_model_the_answer_says_so(client: AsyncClient) -> None:
+    """No key is a configuration problem, and the message names the variable."""
+    app.state.extractor = None
+    files = {"file": ("invoice.pdf", MINIMAL_PDF, "application/pdf")}
+
+    response = await client.post("/extract", files=files)
+
+    assert response.status_code == 500
+    body = response.json()
+    assert body["error"]["code"] == "llm_not_configured"
+    assert "OPENAI_API_KEY" in body["error"]["message"]
 
 
 async def test_image_is_rejected_with_415(client: AsyncClient) -> None:
@@ -128,3 +174,24 @@ async def test_startup_puts_a_caching_engine_in_place(
 
     async with lifespan(app):
         assert app.state.ocr.name == "tesseract"
+
+
+async def test_no_model_key_does_not_take_the_service_down(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Reading PDFs still works. The upload gets a clear answer instead."""
+    monkeypatch.setenv("OCR_ENGINE", "tesseract")
+
+    async with lifespan(app):
+        assert app.state.ocr.name == "tesseract"
+        assert app.state.extractor is None
+
+
+async def test_a_model_key_builds_the_extractor_at_startup(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("OCR_ENGINE", "tesseract")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+
+    async with lifespan(app):
+        assert isinstance(app.state.extractor, InvoiceExtractor)
