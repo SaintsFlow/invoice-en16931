@@ -30,3 +30,21 @@ class FileTooLargeError(InvoiceError):
 
     status_code = 413
     code = "file_too_large"
+
+
+class UnknownOcrEngineError(InvoiceError):
+    """OCR_ENGINE names an engine that does not exist.
+
+    Raised while the service starts, so a typo in the config is found there and
+    not on the first upload of the day.
+    """
+
+    status_code = 500
+    code = "unknown_ocr_engine"
+
+
+class OcrFailedError(InvoiceError):
+    """The page could not be read: the PDF is broken or a tool failed."""
+
+    status_code = 422
+    code = "ocr_failed"
