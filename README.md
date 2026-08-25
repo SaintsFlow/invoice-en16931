@@ -44,9 +44,14 @@ curl -F file=@samples/invoice-01.pdf http://localhost:8080/extract
 validated structured data. Which system receives it is a detail, so it lives behind
 `ERPAdapter` and can be swapped.
 
-**Validation is not optional.** Anything the model produces that fails the arithmetic or
-the required field check is returned as an error with the field name, not silently
-passed on. A wrong invoice total is worse than no invoice at all.
+**Validation is not optional, and it does not throw anything away.** Every rule runs on
+every invoice, and a failure names the rule, the business term, what was expected and
+what was actually there. The invoice comes back whole alongside the violations: the one
+that does not add up is exactly the one somebody has to look at, and handing them
+nothing to correct helps no one. A wrong invoice total is worse than no invoice at all.
+
+**A cent is rounding, two cents is an error.** Real invoices are written with rounding
+in them. The threshold sits in a single constant so it can be argued about.
 
 **Confidence is reported per field.** The response says which fields came out clean and
 which need a human to look at them.
@@ -70,12 +75,38 @@ that is off by a cent is a wrong invoice. Passing a float into a money field rai
 validation error instead of being rounded away. In JSON, amounts travel as strings for
 the same reason.
 
+## What you get back
+
+`POST /extract` answers with the invoice, whether it passed the checks or not:
+
+```json
+{
+  "filename": "invoice-01.pdf",
+  "reading": { "engine": "tesseract", "pages": 1, "text_lines": 21 },
+  "valid": false,
+  "violations": [
+    {
+      "rule": "BR-CO-17",
+      "bt": "BT-117",
+      "field": "vat_breakdown[0].tax_amount",
+      "message": "vat_breakdown[0].tax_amount is off from 1200.00 at 20% by 100.00",
+      "expected": "240.00",
+      "actual": "340.00"
+    }
+  ],
+  "invoice": { "...": "every field that was read, each with a confidence" }
+}
+```
+
+That example is real. A model reading the sample invoice claimed a taxable base of
+1200.00 while charging VAT on 1700.00, which no arithmetic produces. Rules named
+`BR-something` are quoted from the Schematron the European Commission publishes for
+EN 16931. Rules prefixed `OWN-` are this project's, for things the standard defines
+but does not check, such as a line total matching its own quantity and price.
+
 ## What is not here yet
 
-- `POST /extract` still answers with what OCR saw, not with the invoice. Extraction
-  works and is covered by tests, but it is wired into the response together with the
-  XML and JSON output stage
-- validation of the extracted fields, so nothing is checked against the arithmetic yet
+- UBL 2.1 XML and the flat JSON rendering, and the ERP adapter that sends them on
 - Peppol transport
 - credit notes and corrections
 - a wider set of sample invoices

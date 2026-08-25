@@ -122,6 +122,9 @@ def sample_invoice() -> Invoice:
     return Invoice(
         number=Field[str](value="R-2026-0042", confidence=0.98),
         issue_date=Field[date](value=date(2026, 8, 25)),
+        # 380 is a commercial invoice in UNTDID 1001. BR-04 wants it, so an invoice
+        # that is meant to pass the checks has to carry it.
+        type_code=Field[str](value="380"),
         currency=Field[CurrencyCode](value="EUR"),
         due_date=Field[date](value=date(2026, 9, 24), confidence=0.8),
         seller=Party(

@@ -11,11 +11,21 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from src.errors import FileTooLargeError, InvoiceError, NotAPdfError, OcrFailedError
+from src.errors import (
+    FileTooLargeError,
+    InvoiceError,
+    LlmConfigError,
+    NotAPdfError,
+    OcrFailedError,
+)
+from src.extract.extractor import InvoiceExtractor
+from src.extract.openai import OpenAIProvider
 from src.logs import configure_logging, get_logger
 from src.ocr.base import OcrEngine
 from src.ocr.cache import CachingOcrEngine
 from src.ocr.factory import create_engine
+from src.schema import Invoice
+from src.validate import Violation, check
 
 # 10 MB. Anything bigger is a mistake or an attack, not an invoice.
 MAX_UPLOAD_BYTES: Final = 10 * 1024 * 1024
@@ -33,14 +43,27 @@ log = get_logger()
 
 @asynccontextmanager
 async def lifespan(service: FastAPI) -> AsyncIterator[None]:
-    """Build the OCR engine while starting up.
+    """Build the OCR engine and, if it is configured, the extractor.
 
     A wrong OCR_ENGINE stops the service here, with a readable message, instead
     of failing on the first upload of the day.
+
+    A missing model key does not stop anything. The service still reads PDFs, and
+    an upload gets a clear answer saying the model is not configured. Refusing to
+    start would take the OCR down with it for no reason.
     """
     engine = CachingOcrEngine(create_engine())
     service.state.ocr = engine
-    log.info("service_started", ocr_engine=engine.name)
+
+    try:
+        service.state.extractor = InvoiceExtractor(OpenAIProvider.from_env())
+        model_ready = True
+    except LlmConfigError as unconfigured:
+        service.state.extractor = None
+        model_ready = False
+        log.warning("extractor_not_configured", reason=unconfigured.message)
+
+    log.info("service_started", ocr_engine=engine.name, extractor=model_ready)
     yield
 
 
@@ -58,19 +81,28 @@ class Health(BaseModel):
     status: Literal["ok"]
 
 
-class ExtractAccepted(BaseModel):
-    """Answer of POST /extract. The invoice fields themselves arrive in wave 3.
+class ReadingReport(BaseModel):
+    """What the OCR step saw, kept next to the result so a bad read is visible."""
 
-    For now the caller gets back what the OCR step saw: how many pages the file
-    has and how many lines of text were read off them.
-    """
-
-    status: Literal["accepted"]
-    filename: str
-    size_bytes: int
     engine: str
     pages: int
     text_lines: int
+
+
+class Extracted(BaseModel):
+    """Answer of POST /extract.
+
+    The invoice is here whether it passed the checks or not. An invoice that does
+    not add up is exactly the one somebody needs to look at, and throwing it away
+    would leave them with nothing to correct.
+    """
+
+    filename: str
+    size_bytes: int
+    reading: ReadingReport
+    valid: bool
+    violations: list[Violation]
+    invoice: Invoice
 
 
 class ErrorBody(BaseModel):
@@ -137,10 +169,12 @@ async def _read_within_limit(upload: UploadFile) -> bytes:
         413: {"model": ErrorResponse},
         415: {"model": ErrorResponse},
         422: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+        502: {"model": ErrorResponse},
     },
 )
-async def extract(request: Request, file: Annotated[UploadFile, File()]) -> ExtractAccepted:
-    """Take a PDF invoice, check it and read it with OCR."""
+async def extract(request: Request, file: Annotated[UploadFile, File()]) -> Extracted:
+    """Take a PDF invoice, read it, pull out the fields and check them."""
     data = await _read_within_limit(file)
     if not data.startswith(PDF_SIGNATURE):
         raise NotAPdfError("file is not a PDF, the PDF signature is missing")
@@ -148,15 +182,25 @@ async def extract(request: Request, file: Annotated[UploadFile, File()]) -> Extr
     name = file.filename or "upload.pdf"
     log.info("upload_accepted", filename=name, size_bytes=len(data))
 
-    engine = _engine_of(request.app)
-    result = await engine.read(data)
-    return ExtractAccepted(
-        status="accepted",
+    read = await _engine_of(request.app).read(data)
+    invoice = await _extractor_of(request.app).extract(read)
+    report = check(invoice)
+
+    log.info(
+        "invoice_checked",
+        filename=name,
+        valid=report.valid,
+        violations=[violation.rule for violation in report.violations],
+    )
+    return Extracted(
         filename=name,
         size_bytes=len(data),
-        engine=result.engine,
-        pages=len(result.pages),
-        text_lines=result.line_count,
+        reading=ReadingReport(
+            engine=read.engine, pages=len(read.pages), text_lines=read.line_count
+        ),
+        valid=report.valid,
+        violations=report.violations,
+        invoice=invoice,
     )
 
 
@@ -166,3 +210,14 @@ def _engine_of(service: FastAPI) -> OcrEngine:
     if not isinstance(engine, OcrEngine):
         raise OcrFailedError("the OCR engine is not ready")
     return engine
+
+
+def _extractor_of(service: FastAPI) -> InvoiceExtractor:
+    """Take the extractor the startup put aside, or say plainly that there is none."""
+    extractor = getattr(service.state, "extractor", None)
+    if not isinstance(extractor, InvoiceExtractor):
+        raise LlmConfigError(
+            "the service cannot read fields out of an invoice: no model is configured. "
+            "Set OPENAI_API_KEY, and OPENAI_BASE_URL if the model is not OpenAI."
+        )
+    return extractor
