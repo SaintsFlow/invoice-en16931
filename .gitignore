@@ -22,3 +22,8 @@ out/
 AGENTS.md
 PLAN.md
 PROMPTS.md
+CLAUDE.md
+.claude/
+_handoff/
+.cursor/
+.codex/
