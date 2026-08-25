@@ -104,11 +104,34 @@ That example is real. A model reading the sample invoice claimed a taxable base 
 EN 16931. Rules prefixed `OWN-` are this project's, for things the standard defines
 but does not check, such as a line total matching its own quantity and price.
 
+## Output and delivery
+
+A checked invoice is rendered two ways. UBL 2.1 XML, which is what Peppol carries, and
+a flat JSON for anything that does not speak XML. Both come from the same invoice, and
+a test pairs their values field by field so they cannot drift apart.
+
+The XML is validated in the test suite against the OASIS UBL 2.1 schemas, which live in
+`schemas/ubl-2.1/`. XML that merely looks like UBL is worth nothing: the receiver
+validates, and a document that fails there fails after it has left.
+
+Delivery sits behind `ERPAdapter`, chosen with `ERP_ADAPTER`:
+
+| Adapter | What it does |
+|---|---|
+| `file` | writes `<number>.xml` and `<number>.json` into `OUTPUT_DIR` |
+| `mock_erp` | posts both renderings to `ERP_URL` and insists on being told they arrived |
+
+**An invoice that fails the checks is never delivered.** The check sits inside
+`ERPAdapter.send`, not in the code that calls it, so there is no way in that skips it
+and a new adapter gets the protection by existing. A receiver that answers 500 has not
+taken the invoice, and saying otherwise would turn a delivery problem into a silent
+loss that surfaces weeks later.
+
 ## What is not here yet
 
-- UBL 2.1 XML and the flat JSON rendering, and the ERP adapter that sends them on
 - Peppol transport
 - credit notes and corrections
+- allowances, charges and payment means, so an invoice that has any is not represented
 - a wider set of sample invoices
 
 ## License
