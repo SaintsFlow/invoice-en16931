@@ -58,6 +58,13 @@ The few fields the profile adds on top of the core, such as the specification an
 process identifiers and the electronic addresses of both parties, are part of the model
 from the start, because adding them later would break every consumer of the schema.
 
+**A value that was not seen comes back empty.** The prompt lives in `prompts/extract.md`,
+not in the code, and its first rule is that a value which is not visible in the text is
+returned as null. Never a guess, never a number worked out from the other numbers. A null
+costs a reviewer ten seconds; an invented amount goes into accounting and stays there.
+An answer that does not fit the schema buys exactly one retry, with the validation error
+quoted back to the model, and then fails with the field name and its BT code.
+
 **Money is a decimal, never a float.** A float cannot hold cents exactly, and an invoice
 that is off by a cent is a wrong invoice. Passing a float into a money field raises a
 validation error instead of being rounded away. In JSON, amounts travel as strings for
@@ -65,6 +72,10 @@ the same reason.
 
 ## What is not here yet
 
+- `POST /extract` still answers with what OCR saw, not with the invoice. Extraction
+  works and is covered by tests, but it is wired into the response together with the
+  XML and JSON output stage
+- validation of the extracted fields, so nothing is checked against the arithmetic yet
 - Peppol transport
 - credit notes and corrections
 - a wider set of sample invoices

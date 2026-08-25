@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import re
 from collections.abc import Iterator
 from datetime import date
 from decimal import Decimal
@@ -167,3 +169,29 @@ def test_currency_code_is_the_constrained_string() -> None:
 
     with pytest.raises(ValidationError):
         Field[CurrencyCode](value="EURO")
+
+
+def test_no_pattern_in_the_schema_uses_a_lookahead() -> None:
+    """A lookahead cannot become a grammar, and a model server then refuses everything.
+
+    Measured on ollama with qwen3:8b: the regex pydantic generates for a Decimal
+    carries a negative lookahead, and the whole request comes back as "failed to
+    parse grammar". Money is described by hand for that reason, so this guards the
+    rest of the model against picking up the same problem.
+    """
+    schema = json.dumps(Invoice.model_json_schema())
+    patterns = re.findall(r'"pattern":\s*"((?:[^"\\]|\\.)*)"', schema)
+
+    assert patterns, "the schema has no patterns at all, this test is checking nothing"
+    assert [p for p in patterns if "(?!" in p or "(?=" in p] == []
+
+
+def test_money_is_described_as_a_string() -> None:
+    """The schema has to say what the prompt says, or the model gets two answers."""
+    value = Field[Money].model_json_schema()["properties"]["value"]
+
+    assert value["type"] == "string"
+    assert re.fullmatch(value["pattern"], "240.00")
+    assert re.fullmatch(value["pattern"], "-12")
+    assert not re.fullmatch(value["pattern"], "240,00")
+    assert not re.fullmatch(value["pattern"], "EUR 240.00")

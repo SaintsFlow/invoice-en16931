@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 
 class InvoiceError(Exception):
     """Base class for every error we raise ourselves.
@@ -48,3 +50,36 @@ class OcrFailedError(InvoiceError):
 
     status_code = 422
     code = "ocr_failed"
+
+
+class LlmConfigError(InvoiceError):
+    """The model is not configured: no key, or a setting that makes no sense."""
+
+    status_code = 500
+    code = "llm_not_configured"
+
+
+class LlmRequestError(InvoiceError):
+    """The model could not be reached, or answered with something unusable.
+
+    502 rather than 500: the fault is upstream, and a caller can decide to retry.
+    """
+
+    status_code = 502
+    code = "llm_request_failed"
+
+
+class ExtractionFailedError(InvoiceError):
+    """The model answered, but never with an invoice that fits the schema.
+
+    Carries the list of problems as well as the message. The message is what a
+    caller sees; the problems are what the retry quotes back to the model and
+    what a human needs to see which field went wrong.
+    """
+
+    status_code = 422
+    code = "extraction_failed"
+
+    def __init__(self, message: str, problems: Sequence[str] = ()) -> None:
+        super().__init__(message)
+        self.problems = list(problems)
