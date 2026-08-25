@@ -73,6 +73,16 @@ class Field[T](StrictModel):
     confidence: float = pydantic.Field(default=1.0, ge=0.0, le=1.0)
 
 
+def confidence_of(field: Field[Any] | None) -> float:
+    """How sure we are about one field.
+
+    A field that is not there is a field nobody could read, and that counts as
+    zero. Without this the caller has to spell out the None case every time it
+    wants to show a human which values to look at.
+    """
+    return 0.0 if field is None else field.confidence
+
+
 class PostalAddress(StrictModel):
     """A postal address. BT codes differ by role: seller first, buyer second."""
 

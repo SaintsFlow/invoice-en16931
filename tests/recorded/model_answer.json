@@ -1,0 +1,65 @@
+{
+  "customization_id": "urn:invented:by:the:model",
+  "profile_id": "urn:invented:by:the:model",
+  "number": {"value": "R-2026-0042", "confidence": 0.98},
+  "issue_date": {"value": "2026-08-25", "confidence": 0.95},
+  "type_code": {"value": "380", "confidence": 0.6},
+  "currency": {"value": "EUR", "confidence": 0.99},
+  "due_date": null,
+  "buyer_reference": {"value": null, "confidence": 0},
+  "seller": {
+    "name": {"value": "Muster Handel GmbH", "confidence": 0.97},
+    "vat_id": {"value": "ATU12345678", "confidence": 0.91},
+    "address": {
+      "line_one": {"value": "Hauptstrasse 1", "confidence": 0.9},
+      "line_two": null,
+      "city": {"value": "Wien", "confidence": 0.94},
+      "post_code": {"value": "1010", "confidence": 0.94},
+      "country_subdivision": null,
+      "country_code": {"value": "AT", "confidence": 0.92}
+    },
+    "endpoint_id": null,
+    "endpoint_scheme_id": null
+  },
+  "buyer": {
+    "name": {"value": "Beispiel Kunde AG", "confidence": 0.93},
+    "vat_id": null,
+    "address": {
+      "line_one": null,
+      "line_two": null,
+      "city": {"value": "Muenchen", "confidence": 0.88},
+      "post_code": {"value": "80331", "confidence": 0.88},
+      "country_subdivision": null,
+      "country_code": {"value": "DE", "confidence": 0.85}
+    },
+    "endpoint_id": null,
+    "endpoint_scheme_id": null
+  },
+  "lines": [
+    {
+      "identifier": null,
+      "name": {"value": "Beratung", "confidence": 0.96},
+      "quantity": {"value": "2", "confidence": 0.95},
+      "quantity_unit_code": {"value": "HUR", "confidence": 0.7},
+      "net_price": {"value": "100.00", "confidence": 0.95},
+      "net_amount": {"value": "200.00", "confidence": 0.95},
+      "vat_category_code": {"value": "S", "confidence": 0.8},
+      "vat_rate": {"value": "20", "confidence": 0.9}
+    }
+  ],
+  "vat_breakdown": [
+    {
+      "category_code": {"value": "S", "confidence": 0.8},
+      "rate": {"value": "20", "confidence": 0.9},
+      "taxable_amount": {"value": "200.00", "confidence": 0.95},
+      "tax_amount": {"value": "40.00", "confidence": 0.95}
+    }
+  ],
+  "totals": {
+    "line_net_total": {"value": "200.00", "confidence": 0.95},
+    "net_total": {"value": "200.00", "confidence": 0.95},
+    "vat_total": {"value": "40.00", "confidence": 0.95},
+    "gross_total": {"value": "240.00", "confidence": 0.97},
+    "amount_due": {"value": "240.00", "confidence": 0.97}
+  }
+}

@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator, Mapping, Sequence
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
+from typing import Any
 
+import pytest
+
+from src.extract.base import LlmProvider, Message
 from src.ocr.base import BoundingBox, OcrEngine, OcrLine, OcrPage, OcrResult
 from src.schema import (
     CountryCode,
@@ -21,9 +26,68 @@ from src.schema import (
 )
 
 SAMPLES = Path(__file__).resolve().parent.parent / "samples"
+RECORDED = Path(__file__).resolve().parent / "recorded"
 
 # Enough of a PDF for the signature check, and never sent to a real engine.
 MINIMAL_PDF = b"%PDF-1.7\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n"
+
+# Every variable that could send a test to a real endpoint, and the cost ceiling,
+# which a machine specific .env would otherwise change under the tests.
+_MODEL_VARS = (
+    "OPENAI_API_KEY",
+    "OPENAI_MODEL",
+    "OPENAI_BASE_URL",
+    "OPENAI_TIMEOUT_SECONDS",
+    "MAX_OCR_CHARS",
+)
+
+
+@pytest.fixture(autouse=True)
+def no_model_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Take the model settings away from every test in the suite.
+
+    Without a key the provider refuses to build, so a test that reaches for the
+    real API fails on our own error instead of spending money. This runs
+    everywhere on purpose: the protection is worth more than it costs.
+    """
+    for name in _MODEL_VARS:
+        monkeypatch.delenv(name, raising=False)
+
+
+def recorded_answer(name: str = "model_answer.json") -> str:
+    """One answer a model actually produced, kept as text.
+
+    Text, not a dict: the parsing is part of what these tests are checking.
+    """
+    return (RECORDED / name).read_text(encoding="utf-8")
+
+
+class ScriptedProvider(LlmProvider):
+    """Answers with a prepared script and remembers what it was asked.
+
+    Every extraction test runs through this, so no test can reach the network,
+    and a retry becomes something the test can see rather than assume.
+    """
+
+    name = "scripted"
+
+    def __init__(self, *answers: str) -> None:
+        self._answers: Iterator[str] = iter(answers)
+        self.calls: list[list[Message]] = []
+        self.schemas: list[Mapping[str, Any]] = []
+
+    async def complete(self, messages: Sequence[Message], schema: Mapping[str, Any]) -> str:
+        self.calls.append(list(messages))
+        self.schemas.append(schema)
+        return next(self._answers)
+
+    @property
+    def call_count(self) -> int:
+        return len(self.calls)
+
+    def last_user_text(self) -> str:
+        """What the model was told last. The retry puts its complaint here."""
+        return self.calls[-1][-1].content
 
 
 class CountingEngine(OcrEngine):
