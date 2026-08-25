@@ -51,6 +51,18 @@ passed on. A wrong invoice total is worse than no invoice at all.
 **Confidence is reported per field.** The response says which fields came out clean and
 which need a human to look at them.
 
+**The target profile is Peppol BIS Billing 3.0.** It is EN 16931 written in UBL 2.1,
+which is the format this service already produces. Austria accepts it for public sector
+invoicing next to the national ebInterface format, and it reaches German buyers too.
+The few fields the profile adds on top of the core, such as the specification and
+process identifiers and the electronic addresses of both parties, are part of the model
+from the start, because adding them later would break every consumer of the schema.
+
+**Money is a decimal, never a float.** A float cannot hold cents exactly, and an invoice
+that is off by a cent is a wrong invoice. Passing a float into a money field raises a
+validation error instead of being rounded away. In JSON, amounts travel as strings for
+the same reason.
+
 ## What is not here yet
 
 - Peppol transport
