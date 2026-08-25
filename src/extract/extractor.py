@@ -159,16 +159,32 @@ def _invoice_of(answer: str) -> Invoice:
         ) from wrong
 
 
+def _means_nothing(value: object) -> bool:
+    """Is this the model saying it read nothing, in any of the ways it says it.
+
+    Three ways turn up. A real null. An empty string. And the word null spelled
+    out as text, which qwen3:8b produced for a field that was not on the page.
+    That last one is the dangerous one: "null" is a perfectly good string, so it
+    sails through validation and lands in the invoice as if somebody had read it.
+
+    No invoice field this model fills, a number, a name, a date, an amount, can
+    legitimately be the word null, so treating it as nothing is safe here.
+    """
+    if value is None:
+        return True
+    return isinstance(value, str) and value.strip().lower() in {"", "null", "none"}
+
+
 def _drop_unreadable(value: object) -> object:
     """Collapse a field the model could not read into a plain null.
 
     The prompt asks for null when a value is not visible, and models answer that
-    two ways: `null` outright, or the wrapper with an empty value in it. Both mean
-    the same thing, so both become null before validation. A required field that
-    goes missing this way still fails validation, and that is the right outcome.
+    several ways: `null` outright, or the wrapper with nothing useful in it. They
+    all mean the same thing, so they all become null before validation. A required
+    field that goes missing this way still fails validation, and that is right.
     """
     if isinstance(value, dict):
-        if "value" in value and value["value"] is None:
+        if "value" in value and _means_nothing(value["value"]):
             return None
         return {key: _drop_unreadable(item) for key, item in value.items()}
     if isinstance(value, list):

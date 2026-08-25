@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal
-from typing import Annotated, Any, get_args, get_origin
+from typing import Annotated, Any, Final, get_args, get_origin
 
 import pydantic
 from pydantic import BaseModel, BeforeValidator, ConfigDict, ValidationError
@@ -46,7 +46,24 @@ def _reject_float(value: object) -> object:
     return value
 
 
-Money = Annotated[Decimal, BeforeValidator(_reject_float)]
+# A plain decimal string: optional minus, digits, optional fraction. No exponent,
+# no thousands separator, no comma.
+#
+# This is spelled out here because pydantic would otherwise describe a Decimal with
+# a regex built on a negative lookahead, and a lookahead cannot be turned into a
+# grammar. A model server that constrains output to the schema then refuses the
+# whole thing: ollama answers "failed to parse grammar" and nothing works. Measured
+# on qwen3:8b, 25.08.2026.
+#
+# The pattern is also more honest than what pydantic generates. It says string only,
+# which is what the prompt asks for and what the service itself writes out.
+MONEY_PATTERN: Final = r"^-?[0-9]+(\.[0-9]+)?$"
+
+Money = Annotated[
+    Decimal,
+    BeforeValidator(_reject_float),
+    pydantic.WithJsonSchema({"type": "string", "pattern": MONEY_PATTERN}),
+]
 """A monetary amount. Accepts Decimal, int and str. A float is refused."""
 
 # Constraints go on the value type, not on the Field wrapper around it: a pattern put

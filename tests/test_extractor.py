@@ -83,6 +83,22 @@ async def test_a_field_that_is_not_in_the_document_comes_back_empty() -> None:
     assert confidence_of(invoice.number) == pytest.approx(0.98)
 
 
+@pytest.mark.parametrize("written", ["null", "NULL", " null ", "none", ""])
+async def test_the_word_null_is_not_a_value(written: str) -> None:
+    """qwen3:8b answered a missing field with the text "null", not with null.
+
+    A string sails through validation, so without this the invoice would carry the
+    word null where a human would read a buyer reference.
+    """
+    payload = json.loads(recorded_answer())
+    payload["buyer_reference"] = {"value": written, "confidence": 0.4}
+    provider = ScriptedProvider(json.dumps(payload))
+
+    invoice = await InvoiceExtractor(provider).extract(ocr_of("Rechnung"))
+
+    assert invoice.buyer_reference is None
+
+
 async def test_the_profile_identifiers_are_ours_not_the_models() -> None:
     """The recorded answer invents both. They are not printed on any invoice."""
     provider = ScriptedProvider(recorded_answer())
